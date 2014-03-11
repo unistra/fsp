@@ -220,25 +220,7 @@ public class XmlRpc
 		XmlRpcClient client = initTransaction();
 
 		// Read file
-		StringBuilder contents = new StringBuilder();
-		String contentString = null;
-
-		try
-		{
-			BufferedReader input = new BufferedReader(new FileReader(new File(filePath)));
-			String line = null;
-			while ((line = input.readLine()) != null)
-			{
-				contents.append(line);
-				contents.append(System.getProperty("line.separator")); //$NON-NLS-1$
-			}
-			contentString = contents.toString();
-			input.close();
-
-		} catch (IOException ex)
-		{
-			ex.printStackTrace();
-		}
+		String contentString = FileUtils.read(filePath);
 
 		String existingContent;
 

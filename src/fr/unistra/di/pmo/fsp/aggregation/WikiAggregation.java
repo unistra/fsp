@@ -7,6 +7,7 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -130,7 +131,7 @@ public class WikiAggregation
 					{
 						Project project = redmineProjects.get(fsp.getRedmineId());
 
-						Main.redmineLogger.info("Processing " + project.getName() + " (" + project.getIdentifier() + " / " + project.getId() + ")"); //$NON-NLS-1$//$NON-NLS-2$//$NON-NLS-3$ //$NON-NLS-4$
+						Main.redmineLogger.info("************* Processing " + project.getName() + " (" + project.getIdentifier() + " / " + project.getId() + ")"); //$NON-NLS-1$//$NON-NLS-2$//$NON-NLS-3$ //$NON-NLS-4$
 
 						// History
 						ProjectDocument projectDocument = null;
@@ -155,6 +156,7 @@ public class WikiAggregation
 						List<CustomField> customFields = project.getCustomFields();
 						for (CustomField customField : customFields)
 						{
+							Main.redmineLogger.debug("Custom field : " + customField.getName() + " / " + customField.getValue());  //$NON-NLS-1$//$NON-NLS-2$
 							if (customField.getName().equals(WEATHER))
 							{
 								weather = customField.getValue();
@@ -170,6 +172,17 @@ public class WikiAggregation
 						if ((lastUpdate != null) && (!lastUpdate.trim().equals(""))) //$NON-NLS-1$
 							lu = invertedDate.parse(lastUpdate);
 						boolean update = ((lu != null) && ((projectHistoryType.sizeOfHistoryArray() == 0) || (projectHistoryType.getHistoryArray(projectHistoryType.sizeOfHistoryArray() - 1).getDate().getTimeInMillis() < lu.getTime())));
+
+						String lus = "null"; //$NON-NLS-1$
+						if (lu != null)
+							lus = invertedDate.format(lu);
+						Calendar pu = null;
+						if (projectHistoryType.sizeOfHistoryArray() != 0)
+							pu = projectHistoryType.getHistoryArray(projectHistoryType.sizeOfHistoryArray() - 1).getDate();
+						String pus = "null"; //$NON-NLS-1$
+						if (pu != null)
+							pus = invertedDate.format(pu.getTime());
+						Main.redmineLogger.info("Last update : " + lus + " / Previous update : " + pus); //$NON-NLS-1$ //$NON-NLS-2$
 
 						HistoryType historyType = null;
 						if (update)
@@ -266,6 +279,11 @@ public class WikiAggregation
 								alertType.setDescription(Messages.getString("WikiAggregation.NotActivated.Warning")); //$NON-NLS-1$
 								warningParagraphs += addWarning(warnings, fsp.getName(), new Date(), alertType.getTitle(), alertType.getDescription(), weather);
 							}
+							
+							HistoryType oldHistoryType = null;
+							if (projectHistoryType.sizeOfHistoryArray() > 1)
+								oldHistoryType = projectHistoryType.getHistoryArray(projectHistoryType.sizeOfHistoryArray() - 2);
+							Main.diff.addItem(project.getName(), oldHistoryType, historyType);
 
 							// Record changes
 							FileOutputStream fos = new FileOutputStream(f);
@@ -336,7 +354,7 @@ public class WikiAggregation
 		if (nb == 1)
 			s += "\n=== " + projectName + " ==="; //$NON-NLS-1$ //$NON-NLS-2$
 		s += "\n==[" + sdf.format(d) + "] "; //$NON-NLS-1$ //$NON-NLS-2$
-//		s += title + "==\n" + note(weather) + description + "</note>"; //$NON-NLS-1$ //$NON-NLS-2$
+		//		s += title + "==\n" + note(weather) + description + "</note>"; //$NON-NLS-1$ //$NON-NLS-2$
 		s += title + "==\n" + description + "\n"; //$NON-NLS-1$ //$NON-NLS-2$
 		return s;
 	}

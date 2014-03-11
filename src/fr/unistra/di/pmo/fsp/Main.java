@@ -1,9 +1,12 @@
 package fr.unistra.di.pmo.fsp;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 
@@ -16,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import com.taskadapter.redmineapi.RedmineException;
 import com.taskadapter.redmineapi.bean.Project;
 
+import fr.unistra.di.pmo.fsp.aggregation.Diff;
 import fr.unistra.di.pmo.fsp.aggregation.WikiAggregation;
 import fr.unistra.di.pmo.fsp.exception.ParameterException;
 import fr.unistra.di.pmo.fsp.parametres.ParametersDocument;
@@ -39,6 +43,7 @@ public class Main
 	 * Log4j element for Dokuwiki related elements.
 	 */
 	public static Logger wikiLogger = LoggerFactory.getLogger("Wiki"); //$NON-NLS-1$
+	public static Diff diff;
 	private static boolean simulation = false;
 
 	/**
@@ -60,11 +65,28 @@ public class Main
 			throw new ParameterException("Inexistant or unreadeable file"); //$NON-NLS-1$ 
 		ParametersDocument doc = ParametersDocument.Factory.parse(f);
 
-		// Get project list from wiki
 		ParametersType pt = doc.getParameters();
+
+		// Prepare mail features
+		MailSender ms = new MailSender(pt.getSend());
+
+		// Get project list from wiki
+				
 		if (pt.isSetSimulation())
 			simulation = pt.getSimulation();
-		
+
+		// Check diff
+		GregorianCalendar start = new GregorianCalendar();
+		String diffNamePrefix = pt.getOutputFolder();
+		if (!diffNamePrefix.endsWith("/"))diffNamePrefix += "/"; //$NON-NLS-1$//$NON-NLS-2$
+		diffNamePrefix += "diff-"; //$NON-NLS-1$
+		diff = new Diff(diffNamePrefix);
+
+		String diffName = diffNamePrefix + start.get(Calendar.WEEK_OF_YEAR);
+
+		File fd = new File(diffName);
+		boolean sendDiff = !fd.exists();
+
 		XmlRpc xmlRpc = WikiConnection.getXmlRpc(pt);
 		HashMap<String, WikiItem> fsps = xmlRpc.getProjectList(doc.getParameters());
 
@@ -74,7 +96,7 @@ public class Main
 		// Get project list from redmine
 		List<Project> pl = Connection.getInstance().getProjects();
 		HashMap<String, Project> redmineProjects = new HashMap<String, Project>();
-		redmineLogger.info("Found " + pl.size() + " projects");  //$NON-NLS-1$//$NON-NLS-2$
+		redmineLogger.info("Found " + pl.size() + " projects"); //$NON-NLS-1$//$NON-NLS-2$
 		for (Project project : pl)
 		{
 			redmineProjects.put(project.getIdentifier(), project);
@@ -84,6 +106,26 @@ public class Main
 		if (pt.sizeOfWikiOutputArray() > 0)
 		{
 			aggregate(pt, fsps, redmineProjects);
+		}
+
+		if (sendDiff)
+		{
+			if (!fd.exists())
+			{
+				FileOutputStream fos = new FileOutputStream(fd);
+				fos.write("".getBytes()); //$NON-NLS-1$
+				fos.close();
+			}
+			String oldDiffName = diffNamePrefix + (start.get(Calendar.WEEK_OF_YEAR) - 1);
+
+			File old = new File(oldDiffName);
+			if (old.exists())
+			{
+				String[] recipients = new String[1];
+				recipients[0] = pt.getReportRecipient();
+				String content = FileUtils.read(old);
+				ms.sendMail(recipients, "Activité projet semaine " + (start.get(Calendar.WEEK_OF_YEAR) - 1), content, null); //$NON-NLS-1$
+			}
 		}
 	}
 
@@ -115,9 +157,10 @@ public class Main
 			}
 		}
 	}
-	
+
 	/**
 	 * Sends mail if an exception is raised
+	 * 
 	 * @param pt parameters
 	 * @param e raised exception
 	 * @param contextElements elements allowing exception investigation
@@ -131,7 +174,7 @@ public class Main
 		PrintWriter printWriter = new PrintWriter(result);
 		e.printStackTrace(printWriter);
 		String text = result.toString();
-		if(contextElements != null)
+		if (contextElements != null)
 		{
 			for (String key : contextElements.keySet())
 			{
