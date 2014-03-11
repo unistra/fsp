@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.TreeSet;
 import java.util.Vector;
 
+import javax.mail.MessagingException;
+
 import org.apache.xmlbeans.XmlOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +35,7 @@ import fr.unistra.di.pmo.fsp.historique.AlertType;
 import fr.unistra.di.pmo.fsp.historique.HistoryType;
 import fr.unistra.di.pmo.fsp.historique.ProjectDocument;
 import fr.unistra.di.pmo.fsp.historique.ProjectHistoryType;
+import fr.unistra.di.pmo.fsp.i18n.Messages;
 import fr.unistra.di.pmo.fsp.parametres.ParametersType;
 import fr.unistra.di.pmo.fsp.parametres.WikiOutputType;
 import fr.unistra.di.pmo.fsp.project.WikiItem;
@@ -45,11 +48,12 @@ import fr.unistra.di.pmo.fsp.redmine.Connection;
  */
 public class WikiAggregation
 {
+	private static final String LAST_UPDATE = "Date mise à jour FSP"; //$NON-NLS-1$
+	private static final String WEATHER = "Météo"; //$NON-NLS-1$
+
 	private final Logger logger = LoggerFactory.getLogger(WikiAggregation.class);
 
 	private static final String OLD = "old"; //$NON-NLS-1$
-	private static final String LAST_FSP_UPDATE = "Date mise à jour FSP"; //$NON-NLS-1$
-	private static final String WEATHER = "Météo"; //$NON-NLS-1$
 	private static SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy"); //$NON-NLS-1$
 	private static SimpleDateFormat invertedDate = new SimpleDateFormat("yyyy-MM-dd"); //$NON-NLS-1$
 	private static final double HOURS_IN_DAY = 7.5;
@@ -95,11 +99,13 @@ public class WikiAggregation
 		if (outputPath == null)
 			return null;
 
-		String result = "===== Suivi =====\n"; //$NON-NLS-1$
-		result += newLine(true, "Projet", "M\u00E9t\u00E9o", "Historique", "Temps ((Temps consomm\u00E9 en jours))", "Alertes \\ Annonces", "Date de mise sous contr\u00F4le", "\u00C2ge ((\u00C2ge du dernier rapport en jours))"); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$ //$NON-NLS-5$ //$NON-NLS-6$ //$NON-NLS-7$
+		String result = Messages.getString("WikiAggregation.MainHeader"); //$NON-NLS-1$
+		result += newLine(
+				true,
+				Messages.getString("WikiAggregation.Header.Project"), Messages.getString("WikiAggregation.Header.Weather"), Messages.getString("WikiAggregation.Header.History"), Messages.getString("WikiAggregation.Header.ConsumedTime"), Messages.getString("WikiAggregation.Header.News"), Messages.getString("WikiAggregation.Header.ControlDate"), Messages.getString("WikiAggregation.Header.LastReport")); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$ //$NON-NLS-5$ //$NON-NLS-6$ //$NON-NLS-7$
 
 		// Warnings
-		String warningParagraphs = "==== Alertes et annonces ====\n"; //$NON-NLS-1$
+		String warningParagraphs = Messages.getString("WikiAggregation.NewsParagraph"); //$NON-NLS-1$
 
 		if (at.sizeOfFspArray() == 0)
 		{
@@ -153,7 +159,7 @@ public class WikiAggregation
 							{
 								weather = customField.getValue();
 							}
-							if (customField.getName().equals(LAST_FSP_UPDATE))
+							if (customField.getName().equals(LAST_UPDATE))
 							{
 								lastUpdate = customField.getValue();
 							}
@@ -161,7 +167,7 @@ public class WikiAggregation
 
 						// Check if new history item
 						Date lu = null;
-						if (lastUpdate != null)
+						if ((lastUpdate != null) && (!lastUpdate.trim().equals(""))) //$NON-NLS-1$
 							lu = invertedDate.parse(lastUpdate);
 						boolean update = ((lu != null) && ((projectHistoryType.sizeOfHistoryArray() == 0) || (projectHistoryType.getHistoryArray(projectHistoryType.sizeOfHistoryArray() - 1).getDate().getTimeInMillis() < lu.getTime())));
 
@@ -175,9 +181,12 @@ public class WikiAggregation
 							historyType.setWeather(weather);
 						} else
 						{
-							historyType = projectHistoryType.getHistoryArray(projectHistoryType.sizeOfHistoryArray() - 1);
-							weather = historyType.getWeather();
-							lu = historyType.getDate().getTime();
+							if (projectHistoryType.sizeOfHistoryArray() > 0)
+							{
+								historyType = projectHistoryType.getHistoryArray(projectHistoryType.sizeOfHistoryArray() - 1);
+								weather = historyType.getWeather();
+								lu = historyType.getDate().getTime();
+							}
 						}
 
 						int warnings = 0;
@@ -234,7 +243,7 @@ public class WikiAggregation
 										if (!news2.getTitle().toLowerCase().startsWith(OLD))
 										{
 											warnings++;
-											warningParagraphs += addWarning(warnings, fsp.getName(), news2.getCreatedOn(), news2.getTitle(), news2.getDescription());
+											warningParagraphs += addWarning(warnings, fsp.getName(), news2.getCreatedOn(), news2.getTitle(), news2.getDescription(), weather);
 
 											AlertType alertType = historyType.addNewAlert();
 											GregorianCalendar gc = new GregorianCalendar();
@@ -254,8 +263,8 @@ public class WikiAggregation
 								GregorianCalendar gc = new GregorianCalendar();
 								alertType.setDate(gc);
 								alertType.setTitle("Connecteur"); //$NON-NLS-1$
-								alertType.setDescription("Les annonces ne sont pas activées pour le projet"); //$NON-NLS-1$
-								warningParagraphs += addWarning(warnings, fsp.getName(), new Date(), alertType.getTitle(), alertType.getDescription());
+								alertType.setDescription(Messages.getString("WikiAggregation.NotActivated.Warning")); //$NON-NLS-1$
+								warningParagraphs += addWarning(warnings, fsp.getName(), new Date(), alertType.getTitle(), alertType.getDescription(), weather);
 							}
 
 							// Record changes
@@ -263,14 +272,14 @@ public class WikiAggregation
 							XmlOptions xmlOptions = new XmlOptions();
 							xmlOptions.setSaveAggressiveNamespaces();
 							xmlOptions.setSavePrettyPrint();
-							fos.write(projectDocument.xmlText(xmlOptions).getBytes());
+							fos.write(("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + projectDocument.xmlText(xmlOptions)).getBytes("UTF-8")); //$NON-NLS-1$ //$NON-NLS-2$
 							fos.close();
-						} else if (historyType.sizeOfAlertArray() > 0)
+						} else if ((historyType != null) && (historyType.sizeOfAlertArray() > 0))
 						{
 							for (AlertType alertType : historyType.getAlertArray())
 							{
 								warnings++;
-								warningParagraphs += addWarning(warnings, fsp.getName(), alertType.getDate().getTime(), alertType.getTitle(), alertType.getDescription());
+								warningParagraphs += addWarning(warnings, fsp.getName(), alertType.getDate().getTime(), alertType.getTitle(), alertType.getDescription(), weather);
 							}
 						}
 
@@ -290,11 +299,23 @@ public class WikiAggregation
 						result += newLine(false, fspName, "Erreur dans la fiche", " ", " ", " ", " ", " "); //$NON-NLS-1$//$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$ //$NON-NLS-5$ //$NON-NLS-6$
 						logger.error("Erreur : " + fspName + " : " + e.getClass().getName() + " : " + e.getMessage()); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
 						e.printStackTrace();
+						try
+						{
+							HashMap<String, String> contextElements = new HashMap<String, String>();
+							contextElements.put("fspName", fspName); //$NON-NLS-1$
+							contextElements.put("redmineId", fsp.getRedmineId()); //$NON-NLS-1$
+							Main.errorMail(parameters, e, contextElements);
+						} catch (ParameterException e1)
+						{
+							e1.printStackTrace();
+						} catch (MessagingException e1)
+						{
+							e1.printStackTrace();
+						}
 					}
-				}
-				else
+				} else
 				{
-					result += newLine(false, fspName, " ", " [[projets:fsp-old|Ancien suivi]] ", " ", " ", " ", " "); //$NON-NLS-1$//$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$ //$NON-NLS-5$ //$NON-NLS-6$
+					result += newLine(false, fspName, " ", Messages.getString("WikiAggregation.NotActivated.Replacement"), " ", " ", " ", " "); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$ //$NON-NLS-5$ //$NON-NLS-6$
 				}
 			}
 		}
@@ -309,13 +330,14 @@ public class WikiAggregation
 		return fileName;
 	}
 
-	private String addWarning(int nb, String projectName, Date d, String title, String description)
+	private String addWarning(int nb, String projectName, Date d, String title, String description, String weather)
 	{
 		String s = ""; //$NON-NLS-1$
 		if (nb == 1)
 			s += "\n=== " + projectName + " ==="; //$NON-NLS-1$ //$NON-NLS-2$
 		s += "\n==[" + sdf.format(d) + "] "; //$NON-NLS-1$ //$NON-NLS-2$
-		s += title + "==\n" + description; //$NON-NLS-1$
+//		s += title + "==\n" + note(weather) + description + "</note>"; //$NON-NLS-1$ //$NON-NLS-2$
+		s += title + "==\n" + description + "\n"; //$NON-NLS-1$ //$NON-NLS-2$
 		return s;
 	}
 
@@ -342,7 +364,7 @@ public class WikiAggregation
 					l = ((Double) Math.floor(delay / 86400000)).intValue() + ""; //$NON-NLS-1$
 			}
 		}
-		time = time/HOURS_IN_DAY;
+		time = time / HOURS_IN_DAY;
 		return newLine(heading, projectName, weather, forecast, nf.format(time), warnings, c, l);
 	}
 
@@ -381,6 +403,22 @@ public class WikiAggregation
 		if (name.equals(GREEN))
 			return "{{:green.png|Tout va bien}}"; //$NON-NLS-1$
 		return " "; //$NON-NLS-1$
+	}
+
+	private String note(String name)
+	{
+		if (name == null)
+			return " "; //$NON-NLS-1$
+		name = name.toLowerCase();
+		String s = "<note "; //$NON-NLS-1$
+		if (name.equals(RED))
+			s += "warning"; //$NON-NLS-1$
+		if (name.equals(ORANGE))
+			s += "important"; //$NON-NLS-1$
+		if (name.equals(GREEN))
+			s += "tip"; //$NON-NLS-1$
+		s += ">"; //$NON-NLS-1$
+		return s;
 	}
 
 	private String getWikiPath(String title)

@@ -14,6 +14,7 @@ import fr.unistra.di.pmo.fsp.XmlRpc;
 public class WikiItem
 {
 	private static final String ID_CHRONOS_ID = "idChronos_id"; //$NON-NLS-1$
+	private static final String ID_CHRONOS_ID_BAD = "idChronos"; //$NON-NLS-1$
 	private static final String CHEF_DE_PROJET = "Chef-de-Projet"; //$NON-NLS-1$
 	private static final String DEPARTEMENT = "Departement"; //$NON-NLS-1$
 	private static final String COMMANDITAIRE = "Commanditaire"; //$NON-NLS-1$
@@ -84,7 +85,7 @@ public class WikiItem
 								departement = clean(value);
 							if (valueName.toLowerCase().equals(CHEF_DE_PROJET.toLowerCase()))
 								chefDeProjet = clean(value);
-							if (valueName.toLowerCase().equals(ID_CHRONOS_ID.toLowerCase()))
+							if (valueName.toLowerCase().equals(ID_CHRONOS_ID.toLowerCase()) || valueName.toLowerCase().equals(ID_CHRONOS_ID_BAD.toLowerCase()))
 								redmineId = clean(value);
 						}
 					}

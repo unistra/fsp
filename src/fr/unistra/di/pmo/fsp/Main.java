@@ -103,14 +103,7 @@ public class Main
 				e.printStackTrace();
 				try
 				{
-					MailSender ms = new MailSender(pt.getSend());
-					StringWriter result = new StringWriter();
-					PrintWriter printWriter = new PrintWriter(result);
-					e.printStackTrace(printWriter);
-					String text = result.toString();
-					String[] recipients = new String[1];
-					recipients[0] = pt.getErrorRecipient();
-					ms.sendMail(recipients, "Exception in FSP", text, null); //$NON-NLS-1$
+					errorMail(pt, e, null);
 				} catch (ParameterException e1)
 				{
 					e1.printStackTrace();
@@ -121,6 +114,33 @@ public class Main
 
 			}
 		}
+	}
+	
+	/**
+	 * Sends mail if an exception is raised
+	 * @param pt parameters
+	 * @param e raised exception
+	 * @param contextElements elements allowing exception investigation
+	 * @throws ParameterException exception
+	 * @throws MessagingException exception
+	 */
+	public static void errorMail(ParametersType pt, Exception e, HashMap<String, String> contextElements) throws ParameterException, MessagingException
+	{
+		MailSender ms = new MailSender(pt.getSend());
+		StringWriter result = new StringWriter();
+		PrintWriter printWriter = new PrintWriter(result);
+		e.printStackTrace(printWriter);
+		String text = result.toString();
+		if(contextElements != null)
+		{
+			for (String key : contextElements.keySet())
+			{
+				text = key + " : " + contextElements.get(key) + "\n" + text; //$NON-NLS-1$ //$NON-NLS-2$
+			}
+		}
+		String[] recipients = new String[1];
+		recipients[0] = pt.getErrorRecipient();
+		ms.sendMail(recipients, "Exception in FSP", text, null); //$NON-NLS-1$
 	}
 
 	/**
