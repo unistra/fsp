@@ -18,21 +18,21 @@ import fr.unistra.di.pmo.fsp.parametres.ProjectType;
  * 
  * @author virgile
  */
-public class ProjectList
+public class ProjectPortfolio
 {
-	private Hashtable<String, Project> list;
+	private Hashtable<String, PortfolioItem> list;
 
 	/**
 	 * Add project to the list.
 	 * 
 	 * @param p project to add
 	 */
-	public void addProject(Project p)
+	public void addProject(PortfolioItem p)
 	{
 		if (p != null)
 		{
 			if (list == null)
-				list = new Hashtable<String, Project>();
+				list = new Hashtable<String, PortfolioItem>();
 			list.put(p.getPath(), p);
 		}
 	}
@@ -43,7 +43,7 @@ public class ProjectList
 	 * @param pl list to compare to
 	 * @return differences (text format)
 	 */
-	public String compare(ProjectList pl)
+	public String compare(ProjectPortfolio pl)
 	{
 		String diff = new String();
 		if (pl != null)
@@ -113,7 +113,7 @@ public class ProjectList
 					for (int i = 0; i < doc.getProjectList().sizeOfProjectArray(); i++)
 					{
 						ProjectType pt = doc.getProjectList().getProjectArray(i);
-						addProject(new Project(pt.getName(), pt.getPath(), pt.getPhase()));
+						addProject(new PortfolioItem(pt.getName(), pt.getPath(), pt.getPhase()));
 					}
 				}
 			}
@@ -138,7 +138,7 @@ public class ProjectList
 			while (e.hasMoreElements())
 			{
 				String k = e.nextElement();
-				Project p = list.get(k);
+				PortfolioItem p = list.get(k);
 				ProjectType pt = pl.addNewProject();
 				pt.setName(p.getName());
 				pt.setPhase(p.getPhase());

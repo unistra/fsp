@@ -5,7 +5,7 @@ package fr.unistra.di.pmo.fsp.project;
  * 
  * @author virgile
  */
-public class Project
+public class PortfolioItem
 {
 	private String name;
 	private String path;
@@ -18,7 +18,7 @@ public class Project
 	 * @param path page path
 	 * @param phase phase
 	 */
-	public Project(String name, String path, String phase)
+	public PortfolioItem(String name, String path, String phase)
 	{
 		super();
 		this.name = name;

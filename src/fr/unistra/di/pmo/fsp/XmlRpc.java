@@ -3,7 +3,6 @@ package fr.unistra.di.pmo.fsp;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -13,15 +12,12 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.Vector;
 
 import javax.mail.MessagingException;
 
-import org.apache.commons.codec.binary.Base64;
 import org.apache.ws.commons.util.NamespaceContextImpl;
 import org.apache.xmlbeans.XmlException;
 import org.apache.xmlrpc.XmlRpcException;
@@ -42,12 +38,10 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 import fr.unistra.di.pmo.fsp.exception.ParameterException;
-import fr.unistra.di.pmo.fsp.parametres.FSPType;
-import fr.unistra.di.pmo.fsp.parametres.ParametersDocument;
 import fr.unistra.di.pmo.fsp.parametres.ParametersType;
-import fr.unistra.di.pmo.fsp.parametres.WikiOutputType;
-import fr.unistra.di.pmo.fsp.project.Project;
-import fr.unistra.di.pmo.fsp.project.ProjectList;
+import fr.unistra.di.pmo.fsp.project.PortfolioItem;
+import fr.unistra.di.pmo.fsp.project.ProjectPortfolio;
+import fr.unistra.di.pmo.fsp.project.WikiItem;
 
 /**
  * Wiki interactions.
@@ -60,170 +54,134 @@ public class XmlRpc
 
 	private String username;
 	private String password;
+	private String xmlRpcService;
 
 	/**
 	 * Constructor.
-	 * 
+	 * @param xmlRpcService wiki connection
 	 * @param username authorized user name
 	 * @param password authorized user password
 	 * @throws ParameterException insufficient parameters for authentication
 	 */
-	public XmlRpc(String username, String password) throws ParameterException
+	public XmlRpc(String xmlRpcService, String username, String password) throws ParameterException
 	{
 		if ((username == null) || (password == null))
 			throw new ParameterException("Insufficient indentification parameters for Wiki actions"); //$NON-NLS-1$
 		this.username = username;
 		this.password = password;
+		this.xmlRpcService = xmlRpcService;
 	}
 
 	/**
 	 * Get project list from wiki.
 	 * 
-	 * @param doc parameters
+	 * @param pt parameters
 	 * @return updated parameters
 	 * @throws ParameterException error getting parameters
 	 * @throws MalformedURLException malformed URL for XML RPC services
 	 * @throws UnsupportedEncodingException bad encoding
 	 */
-	public static ParametersDocument getProjectList(ParametersDocument doc) throws ParameterException, MalformedURLException, UnsupportedEncodingException
+	public HashMap<String, WikiItem> getProjectList(ParametersType pt) throws ParameterException, MalformedURLException, UnsupportedEncodingException
 	{
-		if (doc == null)
-			return null;
-		// Get FSP main page
-		ParametersType pt = doc.getParameters();
-		WikiOutputType wot = null;
-		if (pt.sizeOfWikiArray() > 0)
+		XmlRpcClient client = initTransaction();
+
+		HashMap<String, WikiItem> projects = new HashMap<String, WikiItem>();
+
+		// Read Projects home page
+		Vector<Object> params = new Vector<Object>();
+		params.add(pt.getWikiConfiguration().getProjectListPath());
+		Main.wikiLogger.info("Fetching project list at " + pt.getWikiConfiguration().getProjectListPath()); //$NON-NLS-1$
+		String existingContent = null;
+		try
 		{
-			for (int i = 0; i < pt.sizeOfWikiArray(); i++)
+			existingContent = (String) client.execute("wiki.getPageHTML", params); //$NON-NLS-1$
+			ByteArrayInputStream instream = new ByteArrayInputStream(existingContent.getBytes("iso-8859-1")); //$NON-NLS-1$
+			Tidy tidy = new Tidy();
+			tidy.setQuiet(true);
+			tidy.setShowWarnings(false);
+			Document document = (tidy).parseDOM(instream, null);
+			NodeList list = document.getElementsByTagName("table"); //$NON-NLS-1$
+			ProjectPortfolio pl = new ProjectPortfolio();
+			if (list.getLength() > 0)
 			{
-				WikiOutputType tmp = pt.getWikiArray(i);
-				if (tmp.getName().equals("TousWiki")) //$NON-NLS-1$
+				if (list.item(0).getLocalName().equals("table")) //$NON-NLS-1$
+					list = list.item(0).getChildNodes();
+				for (int i = 0; i < list.getLength(); i++)
 				{
-					wot = tmp;
-					wot.setFspArray(null);
-					i = pt.sizeOfWikiArray();
-				}
-			}
-			if (wot == null)
-				throw new ParameterException("Unable to find main FSP page"); //$NON-NLS-1$
-
-			XmlRpcClientConfigImpl config = new XmlRpcClientConfigImpl();
-			// Authentification
-			config.setBasicUserName(wot.getUsername());
-			config.setBasicPassword(wot.getPassword());
-			config.setServerURL(new URL(wot.getXmlRpcService()));
-			XmlRpcClient client = new XmlRpcClient();
-			client.setConfig(config);
-			client.setTypeFactory((new XmlRpc(wot.getUsername(), wot.getPassword())).new CustomTypeFactory(client));
-
-			pt.setFspArray(null);
-
-			// Read Projects home page
-			Vector<Object> params = new Vector<Object>();
-			params.add("projets/start"); //$NON-NLS-1$
-			String existingContent = null;
-			Hashtable<String, String> h = new Hashtable<String, String>();
-			try
-			{
-				existingContent = (String) client.execute("wiki.getPageHTML", params); //$NON-NLS-1$
-				ByteArrayInputStream instream = new ByteArrayInputStream(existingContent.getBytes("iso-8859-1")); //$NON-NLS-1$
-				Document document = (new Tidy()).parseDOM(instream, null);
-				NodeList list = document.getElementsByTagName("table"); //$NON-NLS-1$
-				ProjectList pl = new ProjectList();
-				if (list.getLength() > 0)
-				{
-					if (list.item(0).getLocalName().equals("table")) //$NON-NLS-1$
-						list = list.item(0).getChildNodes();
-					for (int i = 0; i < list.getLength(); i++)
+					Node node = list.item(i);
+					if (node.getLocalName().equals("tr")) //$NON-NLS-1$
 					{
-						Node node = list.item(i);
-						if (node.getLocalName().equals("tr")) //$NON-NLS-1$
+						if ((node.getChildNodes() != null) && (node.getChildNodes().getLength() > 0))
 						{
-							if ((node.getChildNodes() != null) && (node.getChildNodes().getLength() > 0))
+							Node tdName = node.getChildNodes().item(0);
+							String path = null;
+							String title = null;
+							if ((tdName.getChildNodes().getLength() > 0) && (tdName.getLocalName().equals("td"))) //$NON-NLS-1$
 							{
-								Node tdName = node.getChildNodes().item(0);
-								String path = null;
-								String title = null;
-								if ((tdName.getChildNodes().getLength() > 0) && (tdName.getLocalName().equals("td"))) //$NON-NLS-1$
+								Node a = tdName.getChildNodes().item(0);
+								if (a.getLocalName().equals("a")) //$NON-NLS-1$
 								{
-									Node a = tdName.getChildNodes().item(0);
-									if (a.getLocalName().equals("a")) //$NON-NLS-1$
+									if ((a.getAttributes().getLength() > 0) && (a.getAttributes().getNamedItem("title") != null)) //$NON-NLS-1$
 									{
-										if ((a.getAttributes().getLength() > 0) && (a.getAttributes().getNamedItem("title") != null)) //$NON-NLS-1$
-										{
-											path = a.getAttributes().getNamedItem("title").getNodeValue(); //$NON-NLS-1$
-											title = a.getFirstChild().getNodeValue();
-											String[] split = path.split(":"); //$NON-NLS-1$
-											String sheetName = split[split.length - 2];
-											FSPType ft = pt.addNewFsp();
-											ft.setSheetName(sheetName);
-											ft.setWikiPath(path);
-											ft.setName(title);
-											if (title != null)
-												h.put(deaccent(title.toLowerCase()), sheetName);
-										}
+										path = a.getAttributes().getNamedItem("title").getNodeValue(); //$NON-NLS-1$
+										title = a.getFirstChild().getNodeValue();
+										String[] split = path.split(":"); //$NON-NLS-1$
+										String sheetName = split[split.length - 2];
+										WikiItem ft = new WikiItem(this, path, title, sheetName);
+										if (sheetName != null)
+											projects.put(deaccent(title), ft);
 									}
 								}
-								// Project list comparison features
-								Node tdPhase = node.getChildNodes().item(8);
-								if (tdPhase.getLocalName().equals("td")) //$NON-NLS-1$
-								{
-									String phase = tdPhase.getFirstChild().getNodeValue();
-									pl.addProject(new Project(title, path, phase));
-								}
+							}
+							// Project list comparison features
+							Node tdPhase = node.getChildNodes().item(8);
+							if (tdPhase.getLocalName().equals("td")) //$NON-NLS-1$
+							{
+								String phase = tdPhase.getFirstChild().getNodeValue();
+								pl.addProject(new PortfolioItem(title, path, phase));
 							}
 						}
 					}
-					// Getting last project list
-					ProjectList old = new ProjectList();
-					String path = pt.getOutputFolder();
-					if (!path.endsWith(File.separator))
-						path += File.separator;
-					path += "existingProjects.xml"; //$NON-NLS-1$
-					old.load(path);
-					// Compare to old list
-					String diff = old.compare(pl);
-					// Send diff by mail
-					if (diff != null)
-					{
-						MailSender ms = new MailSender(pt.getSend());
-						String text = diff;
-						String[] recipients = new String[1];
-						recipients[0] = pt.getReportRecipient();
-						ms.sendMail(recipients, "Changements dans la liste des projets", text, null); //$NON-NLS-1$
-					}
-					// Save new list
-					pl.save(path);
 				}
-			} catch (XmlRpcException e)
-			{
-				e.printStackTrace();
-				System.out.println("Unable to get existing content"); //$NON-NLS-1$
-			} catch (IOException e)
-			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (XmlException e)
-			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (MessagingException e)
-			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				// Getting last project list
+				ProjectPortfolio old = new ProjectPortfolio();
+				String path = pt.getOutputFolder();
+				if (!path.endsWith(File.separator))
+					path += File.separator;
+				path += "existingProjects.xml"; //$NON-NLS-1$
+				old.load(path);
+				// Compare to old list
+				String diff = old.compare(pl);
+				// Send diff by mail
+				if (diff != null)
+				{
+					MailSender ms = new MailSender(pt.getSend());
+					String text = diff;
+					String[] recipients = new String[1];
+					recipients[0] = pt.getReportRecipient();
+					ms.sendMail(recipients, "Changements dans la liste des projets", text, null); //$NON-NLS-1$
+				}
+				// Save new list
+				pl.save(path);
 			}
-			// Alphabetical sort
-			Vector<String> v = new Vector<String>(h.keySet());
-			Collections.sort(v);
-			for (String string : v)
-			{
-				wot.addFsp(h.get(string));
-			}
-		} else
+		} catch (XmlRpcException e)
 		{
-			throw new ParameterException("Unable to find main FSP page"); //$NON-NLS-1$
+			e.printStackTrace();
+		} catch (IOException e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (XmlException e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (MessagingException e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
-		return doc;
+		Main.wikiLogger.info("Found " + projects.size() + " projects");  //$NON-NLS-1$//$NON-NLS-2$
+		return projects;
 	}
 
 	private static String deaccent(String s)
@@ -247,27 +205,19 @@ public class XmlRpc
 	/**
 	 * Get existing content, parse result and update FSP content in wiki page.
 	 * 
-	 * @param xmlRpcService address of XML RPC service
 	 * @param wikiPath path of page to update in wiki
 	 * @param filePath source file with FSP contents
-	 * @param attachmentWikiPath wiki path for attached file (optional)
-	 * @param attachmentPath local file path of attached file (optional)
 	 * @throws ParameterException problem with parameters
 	 * @throws IOException problem during upload of attachment
 	 * @throws XmlRpcException communication error with wiki
 	 */
-	public void write(String xmlRpcService, String wikiPath, String filePath, String attachmentWikiPath, String attachmentPath) throws ParameterException, IOException, XmlRpcException
+	public void write(String wikiPath, String filePath) throws ParameterException, IOException, XmlRpcException
 	{
+		Main.wikiLogger.info("Writing to " + wikiPath); //$NON-NLS-1$
 		if ((wikiPath == null) || (filePath == null))
 			throw new ParameterException("Unable to find elements to write to wiki " + wikiPath + " " + filePath); //$NON-NLS-1$ //$NON-NLS-2$
-		XmlRpcClientConfigImpl config = new XmlRpcClientConfigImpl();
-		// Authentification
-		config.setBasicUserName(username);
-		config.setBasicPassword(password);
-		config.setServerURL(new URL(xmlRpcService));
-		XmlRpcClient client = new XmlRpcClient();
-		client.setConfig(config);
-		client.setTypeFactory(new CustomTypeFactory(client));
+
+		XmlRpcClient client = initTransaction();
 
 		// Read file
 		StringBuilder contents = new StringBuilder();
@@ -283,10 +233,6 @@ public class XmlRpc
 				contents.append(System.getProperty("line.separator")); //$NON-NLS-1$
 			}
 			contentString = contents.toString();
-			if ((attachmentPath != null) && (attachmentWikiPath != null))
-			{
-				contentString += "\n====Version tableur====\n{{:" + attachmentWikiPath + "}}\n"; //$NON-NLS-1$//$NON-NLS-2$
-			}
 			input.close();
 
 		} catch (IOException ex)
@@ -332,12 +278,6 @@ public class XmlRpc
 				e.printStackTrace(printWriter);
 				String text = result.toString();
 				if ((text == null) || (!text.contains("Failed to parse server's response: The processing instruction target matching")))throw e; //$NON-NLS-1$
-			} finally
-			{
-				if ((attachmentPath != null) && (attachmentWikiPath != null))
-				{
-					putAttachment(client, attachmentWikiPath, attachmentPath);
-				}
 			}
 
 		}
@@ -373,39 +313,34 @@ public class XmlRpc
 		existingContent = (String) client.execute("wiki.getPage", params); //$NON-NLS-1$
 		return existingContent;
 	}
-
-	// private String getHtmlPage(XmlRpcClient client, String pageName) throws
-	// XmlRpcException
-	// {
-	// if ((client == null) || (pageName == null))
-	// return null;
-	// // Get existing page content
-	// Vector<Object> params = new Vector<Object>();
-	// params.add(pageName);
-	// String existingContent = null;
-	//		existingContent = (String) client.execute("wiki.getPageHTML", params); //$NON-NLS-1$
-	// return existingContent;
-	// }
-
-	private void putAttachment(XmlRpcClient client, String wikiPath, String fileName) throws IOException, XmlRpcException
+	
+	/**
+	 * Reads page from wiki.
+	 * @param pageName page path
+	 * @return page content
+	 * @throws XmlRpcException exception
+	 * @throws MalformedURLException exception
+	 */
+	public String read(String pageName) throws XmlRpcException, MalformedURLException
 	{
-		if ((client != null) && (wikiPath != null) && (fileName != null))
-		{
-			File file = new File(fileName);
-			FileInputStream fis = new FileInputStream(file);
-			byte fileContent[] = new byte[(int) file.length()];
-			fis.read(fileContent);
-			fileContent = Base64.encodeBase64(fileContent);
+		if (pageName == null)
+			return null;
+		XmlRpcClient client = initTransaction();
 
-			Vector<Object> params = new Vector<Object>();
-			params.add(wikiPath);
-			params.add(fileContent);
-			HashMap<String, String> attrs2 = new HashMap<String, String>();
-			// Option to overwrite existing file
-			attrs2.put("ow", "true"); //$NON-NLS-1$ //$NON-NLS-2$
-			params.add(attrs2);
-			client.execute("wiki.putAttachment", params); //$NON-NLS-1$
-		}
+		return getPage(client, pageName);
+	}
+	
+	private XmlRpcClient initTransaction() throws MalformedURLException
+	{
+		XmlRpcClientConfigImpl config = new XmlRpcClientConfigImpl();
+		// Authentification
+		config.setBasicUserName(username);
+		config.setBasicPassword(password);
+		config.setServerURL(new URL(xmlRpcService));
+		XmlRpcClient client = new XmlRpcClient();
+		client.setConfig(config);
+		client.setTypeFactory(new CustomTypeFactory(client));
+		return client;
 	}
 
 	/**
@@ -419,7 +354,8 @@ public class XmlRpc
 		/**
 		 * Constructor.
 		 * 
-		 * @param pController ( @see {@link TypeFactoryImpl.#TypeFactoryImpl(XmlRpcController)}
+		 * @param pController ( @see {@link
+		 *            TypeFactoryImpl.#TypeFactoryImpl(XmlRpcController)}
 		 */
 		public CustomTypeFactory(XmlRpcController pController)
 		{
@@ -458,5 +394,6 @@ public class XmlRpc
 			return super.getSerializer(pConfig, pObject);
 		}
 	}
+	
 
 }

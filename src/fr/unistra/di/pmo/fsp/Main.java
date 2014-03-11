@@ -4,21 +4,25 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Hashtable;
+import java.util.HashMap;
+import java.util.List;
 
 import javax.mail.MessagingException;
 
 import org.apache.xmlbeans.XmlException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import fr.unistra.di.pmo.fsp.aggregation.DataAggregation;
-import fr.unistra.di.pmo.fsp.aggregation.OdtAggregation;
+import com.taskadapter.redmineapi.RedmineException;
+import com.taskadapter.redmineapi.bean.Project;
+
 import fr.unistra.di.pmo.fsp.aggregation.WikiAggregation;
 import fr.unistra.di.pmo.fsp.exception.ParameterException;
-import fr.unistra.di.pmo.fsp.parametres.AggregateType;
-import fr.unistra.di.pmo.fsp.parametres.OpenDocumentOutputType;
 import fr.unistra.di.pmo.fsp.parametres.ParametersDocument;
 import fr.unistra.di.pmo.fsp.parametres.ParametersType;
 import fr.unistra.di.pmo.fsp.parametres.WikiOutputType;
+import fr.unistra.di.pmo.fsp.project.WikiItem;
+import fr.unistra.di.pmo.fsp.redmine.Connection;
 
 /**
  * Main class.
@@ -27,6 +31,14 @@ import fr.unistra.di.pmo.fsp.parametres.WikiOutputType;
  */
 public class Main
 {
+	/**
+	 * Log4j element for Redmine related elements.
+	 */
+	public static Logger redmineLogger = LoggerFactory.getLogger("Redmine"); //$NON-NLS-1$
+	/**
+	 * Log4j element for Dokuwiki related elements.
+	 */
+	public static Logger wikiLogger = LoggerFactory.getLogger("Wiki"); //$NON-NLS-1$
 	private static boolean simulation = false;
 
 	/**
@@ -37,8 +49,9 @@ public class Main
 	 * @throws IOException error reading files
 	 * @throws XmlException error during Xml operations
 	 * @throws MessagingException error during mail fetching
+	 * @throws RedmineException error with redmine
 	 */
-	public static void main(String[] args) throws ParameterException, XmlException, MessagingException, IOException
+	public static void main(String[] args) throws ParameterException, XmlException, MessagingException, IOException, RedmineException
 	{
 		if (args == null)
 			throw new ParameterException("No file parameters provided"); //$NON-NLS-1$
@@ -48,80 +61,43 @@ public class Main
 		ParametersDocument doc = ParametersDocument.Factory.parse(f);
 
 		// Get project list from wiki
-		doc = XmlRpc.getProjectList(doc);
-
 		ParametersType pt = doc.getParameters();
 		if (pt.isSetSimulation())
 			simulation = pt.getSimulation();
-
-		// Fetch mails
-		FetchMail fm = new FetchMail(pt);
-		Hashtable<String, File> fsps = fm.retrieve(false);
-		Sheets sheets = new Sheets(pt, fsps);
 		
+		XmlRpc xmlRpc = WikiConnection.getXmlRpc(pt);
+		HashMap<String, WikiItem> fsps = xmlRpc.getProjectList(doc.getParameters());
+
+		// Initialize redmine connection
+		Connection.init(pt.getSource());
+
+		// Get project list from redmine
+		List<Project> pl = Connection.getInstance().getProjects();
+		HashMap<String, Project> redmineProjects = new HashMap<String, Project>();
+		redmineLogger.info("Found " + pl.size() + " projects");  //$NON-NLS-1$//$NON-NLS-2$
+		for (Project project : pl)
+		{
+			redmineProjects.put(project.getIdentifier(), project);
+		}
+
 		// Aggregates treatment
-		if (pt.sizeOfOdsArray() > 0)
+		if (pt.sizeOfWikiOutputArray() > 0)
 		{
-			aggregate(pt, pt.getOdsArray(), sheets);
-		}
-		if (pt.sizeOfWikiArray() > 0)
-		{
-			aggregate(pt, pt.getWikiArray(), sheets);
-		}
-		// delete temporary files
-		if ((fsps != null) && (fsps.size() > 0))
-		{
-			File file = fsps.elements().nextElement();
-			File parent = file.getParentFile();
-			for (File tmpFile : fsps.values())
-			{
-				tmpFile.delete();
-			}
-			parent.delete();
+			aggregate(pt, fsps, redmineProjects);
 		}
 	}
 
-	private static void aggregate(ParametersType pt, AggregateType[] ag, Sheets sheets)
+	private static void aggregate(ParametersType pt, HashMap<String, WikiItem> fsps, HashMap<String, Project> redmineProjects)
 	{
-		for (AggregateType at : ag)
+		for (WikiOutputType at : pt.getWikiOutputArray())
 		{
 			try
 			{
-				DataAggregation da = null;
-				// Wiki
-				if (at instanceof WikiOutputType)
-				{
-					WikiOutputType wot = (WikiOutputType) at;
-					da = new WikiAggregation(pt, sheets);
-					String filePath = da.aggregateSheet(at, pt.getOutputFolder());
+				WikiAggregation da = new WikiAggregation(pt, fsps, redmineProjects);
+				String filePath = da.aggregateSheet(at, pt.getOutputFolder());
 
-					// Put ODT in wiki
-					da = new OdtAggregation(pt, sheets);
-					String odt = da.aggregateSheet(at, pt.getOutputFolder());
-
-					XmlRpc xr = new XmlRpc(wot.getUsername(), wot.getPassword());
-					String attachmentWikiPath = null;
-					if (wot.isSetWikiAttachmentPath())
-					{
-						attachmentWikiPath = wot.getWikiAttachmentPath();
-					}
-					xr.write(wot.getXmlRpcService(), wot.getWikiPath(), filePath, attachmentWikiPath, odt);
-				}
-				// ODT
-				if (at instanceof OpenDocumentOutputType)
-				{
-					OpenDocumentOutputType odot = (OpenDocumentOutputType) at;
-					da = new OdtAggregation(pt, sheets);
-					String attachment = da.aggregateSheet(at, pt.getOutputFolder());
-					MailSender ms = new MailSender(pt.getSend());
-					String text = "FSP : " + at.getName() + "\nDélai de prise en compte : " + at.getDelay() + " jours\n\nProjets :\n"; //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-					for (String fsp : at.getFspArray())
-					{
-						text += "\t" + fsp + "\n"; //$NON-NLS-1$ //$NON-NLS-2$
-					}
-					if (!isSimulation())
-						ms.sendMail(odot.getRecipientArray(), "Bureau des projets : " + at.getName(), text, attachment); //$NON-NLS-1$
-				}
+				XmlRpc xr = WikiConnection.getXmlRpc(pt);
+				xr.write(at.getWikiPath(), filePath);
 			} catch (Exception e)
 			{
 				e.printStackTrace();
@@ -133,7 +109,7 @@ public class Main
 					e.printStackTrace(printWriter);
 					String text = result.toString();
 					String[] recipients = new String[1];
-					recipients[0] = "do_not_reply@unistra.fr"; //$NON-NLS-1$
+					recipients[0] = pt.getErrorRecipient();
 					ms.sendMail(recipients, "Exception in FSP", text, null); //$NON-NLS-1$
 				} catch (ParameterException e1)
 				{

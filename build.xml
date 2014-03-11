@@ -27,4 +27,15 @@
 			<arg Line="-out ./lib/fsp-parametres.jar ./schemas/parametres.xsd" />
 		</java>
 	</target>
+	
+	<target name="fsp-historique">
+			<java classname="org.apache.xmlbeans.impl.tool.SchemaCompiler" fork="true">
+				<classpath>
+					<pathelement path="./lib/xbean.jar"/>
+					<pathelement path="./lib/xmlbeans-qname.jar"/>
+					<pathelement path="./lib/jsr173_1.0_api.jar"/>
+				</classpath>
+				<arg Line="-out ./lib/fsp-historique.jar ./schemas/historique.xsd" />
+			</java>
+		</target>
 </project>

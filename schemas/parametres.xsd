@@ -7,7 +7,7 @@
       <xs:documentation>Contenu des parametres</xs:documentation>
     </xs:annotation>
     <xs:sequence>
-      <xs:element name="source" type="ns:MailSourceType">
+      <xs:element name="source" type="ns:RedmineSourceType">
         <xs:annotation>
           <xs:documentation>Boîte mail source</xs:documentation>
         </xs:annotation>
@@ -17,19 +17,10 @@
           <xs:documentation>Système d'envoi de mails</xs:documentation>
         </xs:annotation>
       </xs:element>
-      <xs:element name="fsp" minOccurs="1" maxOccurs="unbounded" type="ns:FSPType">
-        <xs:annotation>
-          <xs:documentation>FSP à prendre en compte</xs:documentation>
-        </xs:annotation>
-      </xs:element>
-      <xs:element name="wiki" type="ns:WikiOutputType" minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="wikiConfiguration" type="ns:WikiConfigurationType"/>
+      <xs:element name="wikiOutput" type="ns:WikiOutputType" minOccurs="0" maxOccurs="unbounded">
         <xs:annotation>
           <xs:documentation>Export wiki</xs:documentation>
-        </xs:annotation>
-      </xs:element>
-      <xs:element name="ods" type="ns:OpenDocumentOutputType" minOccurs="0" maxOccurs="unbounded">
-        <xs:annotation>
-          <xs:documentation>Export Open Document</xs:documentation>
         </xs:annotation>
       </xs:element>
       <xs:element name="outputFolder" type="xs:string">
@@ -40,6 +31,11 @@
       <xs:element name="template" type="xs:string">
         <xs:annotation>
           <xs:documentation>Chemin complet du fichier modèle des FSP</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="errorRecipient" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>Destinataire des erreurs</xs:documentation>
         </xs:annotation>
       </xs:element>
       <xs:element name="reportRecipient" type="xs:string">
@@ -55,7 +51,7 @@
       <xs:documentation>Ensemble de FSP à aggréger</xs:documentation>
     </xs:annotation>
     <xs:sequence>
-      <xs:element name="fsp" minOccurs="1" maxOccurs="unbounded" type="xs:string">
+      <xs:element name="fsp" minOccurs="0" maxOccurs="unbounded" type="xs:string">
         <xs:annotation>
           <xs:documentation>Nom du projet relatif à la FSP</xs:documentation>
         </xs:annotation>
@@ -66,15 +62,10 @@
         <xs:documentation>Nom de l'agrégat</xs:documentation>
       </xs:annotation>
     </xs:attribute>
-    <xs:attribute name="delay" type="xs:int" use="optional">
-      <xs:annotation>
-        <xs:documentation>Nombre de jours pour la prise en compte (maintenant - n jours)</xs:documentation>
-      </xs:annotation>
-    </xs:attribute>
   </xs:complexType>
-  <xs:complexType name="MailSourceType">
+  <xs:complexType name="RedmineSourceType">
     <xs:annotation>
-      <xs:documentation>Définition des paramètres pour une boîte mail source</xs:documentation>
+      <xs:documentation>Définition des paramètres pour Redmine</xs:documentation>
     </xs:annotation>
     <xs:sequence>
       <xs:element name="host" type="xs:string">
@@ -82,78 +73,33 @@
           <xs:documentation>Adresse du serveur</xs:documentation>
         </xs:annotation>
       </xs:element>
-      <xs:element name="username" type="xs:string">
+      <xs:element name="accessKey" type="xs:string">
         <xs:annotation>
-          <xs:documentation>Nom d'utilisateur pour la connexion</xs:documentation>
-        </xs:annotation>
-      </xs:element>
-      <xs:element name="password" type="xs:string">
-        <xs:annotation>
-          <xs:documentation>Mot de passe pour la connexion</xs:documentation>
-        </xs:annotation>
-      </xs:element>
-      <xs:element name="type" type="ns:BoxType">
-        <xs:annotation>
-          <xs:documentation>Type de messagerie</xs:documentation>
-        </xs:annotation>
-      </xs:element>
-      <xs:element name="folder" type="xs:string">
-        <xs:annotation>
-          <xs:documentation>Nom du répertoire à utiliser</xs:documentation>
+          <xs:documentation>Clé pour l'accès à l'API</xs:documentation>
         </xs:annotation>
       </xs:element>
     </xs:sequence>
   </xs:complexType>
-  <xs:complexType name="MailSenderType">
-    <xs:annotation>
-      <xs:documentation>Définition des paramètres pour une boîte mail source</xs:documentation>
-    </xs:annotation>
+  <xs:complexType name="WikiConfigurationType">
     <xs:sequence>
-      <xs:element name="host" type="xs:string">
+      <xs:element name="xmlRpcService" type="xs:string">
         <xs:annotation>
-          <xs:documentation>Adresse du serveur</xs:documentation>
-        </xs:annotation>
-      </xs:element>
-      <xs:element name="port" type="xs:string">
-        <xs:annotation>
-          <xs:documentation>Port de communication avec le serveur</xs:documentation>
+          <xs:documentation>Adresse du wiki</xs:documentation>
         </xs:annotation>
       </xs:element>
       <xs:element name="username" type="xs:string">
         <xs:annotation>
-          <xs:documentation>Nom d'utilisateur pour la connexion</xs:documentation>
+          <xs:documentation>Nom d'utilisateur wiki</xs:documentation>
         </xs:annotation>
       </xs:element>
       <xs:element name="password" type="xs:string">
         <xs:annotation>
-          <xs:documentation>Mot de passe pour la connexion</xs:documentation>
+          <xs:documentation>Mot de passe wiki</xs:documentation>
         </xs:annotation>
       </xs:element>
-      <xs:element name="sender" type="xs:string">
+      <xs:element name="projectListPath" type="xs:string">
         <xs:annotation>
-          <xs:documentation>Adresse mail de l'expéditeur</xs:documentation>
-        </xs:annotation>
-      </xs:element>
-    </xs:sequence>
-  </xs:complexType>
-  <xs:complexType name="FSPType">
-    <xs:annotation>
-      <xs:documentation>Données relatives au suivi hebdomadaire des projets</xs:documentation>
-    </xs:annotation>
-    <xs:sequence>
-      <xs:element name="sheetName" type="xs:string">
-        <xs:annotation>
-          <xs:documentation>Nom de la feuille contenant le rapport</xs:documentation>
-        </xs:annotation>
-      </xs:element>
-      <xs:element name="wikiPath" type="xs:string" minOccurs="0">
-        <xs:annotation>
-          <xs:documentation>Chemin wiki du projet</xs:documentation>
-        </xs:annotation>
-      </xs:element>
-      <xs:element name="name" type="xs:string" minOccurs="0">
-        <xs:annotation>
-          <xs:documentation>Libellé d'affichage du projet</xs:documentation>
+          <xs:documentation>Chemin de la liste des projets</xs:documentation>
         </xs:annotation>
       </xs:element>
     </xs:sequence>
@@ -165,29 +111,9 @@
     <xs:complexContent>
       <xs:extension base="ns:AggregateType">
         <xs:sequence>
-          <xs:element name="xmlRpcService" type="xs:string">
-            <xs:annotation>
-              <xs:documentation>Adresse du wiki</xs:documentation>
-            </xs:annotation>
-          </xs:element>
           <xs:element name="wikiPath" type="xs:string">
             <xs:annotation>
               <xs:documentation>Chemin de la page dans le wiki à mettre à jour</xs:documentation>
-            </xs:annotation>
-          </xs:element>
-          <xs:element name="wikiAttachmentPath" type="xs:string" minOccurs="0">
-            <xs:annotation>
-              <xs:documentation>Chemin wiki pour la FSP attachée</xs:documentation>
-            </xs:annotation>
-          </xs:element>
-          <xs:element name="username" type="xs:string">
-            <xs:annotation>
-              <xs:documentation>Nom d'utilisateur wiki</xs:documentation>
-            </xs:annotation>
-          </xs:element>
-          <xs:element name="password" type="xs:string">
-            <xs:annotation>
-              <xs:documentation>Mot de passe wiki</xs:documentation>
             </xs:annotation>
           </xs:element>
         </xs:sequence>
@@ -246,6 +172,38 @@
       <xs:element type="ns:ProjectType" minOccurs="0" maxOccurs="unbounded" name="project">
         <xs:annotation>
           <xs:documentation>Projet de la liste</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="MailSenderType">
+    <xs:annotation>
+      <xs:documentation>Définition des paramètres pour une boîte mail source</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="host" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>Adresse du serveur</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="port" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>Port de communication avec le serveur</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="username" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>Nom d'utilisateur pour la connexion</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="password" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>Mot de passe pour la connexion</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="sender" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>Adresse mail de l'expéditeur</xs:documentation>
         </xs:annotation>
       </xs:element>
     </xs:sequence>

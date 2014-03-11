@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:ns="http://di.unistra.fr/pmo/fsp/historique" targetNamespace="http://di.unistra.fr/pmo/fsp/historique" elementFormDefault="qualified">
+  <xs:annotation>
+    <xs:documentation>Description des fichiers contenant l'historique pour un projet</xs:documentation>
+  </xs:annotation>
+  <xs:complexType name="ProjectHistoryType">
+    <xs:annotation>
+      <xs:documentation>Description d'un projet</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="name" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>Nom du projet</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="identifier" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>Identifiant user friendly</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="history" type="ns:HistoryType" minOccurs="0" maxOccurs="unbounded">
+        <xs:annotation>
+          <xs:documentation>Eléments d'historique pour le projet</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:string">
+      <xs:annotation>
+        <xs:documentation>Identifiant numérique du projet</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+  <xs:complexType name="HistoryType">
+    <xs:annotation>
+      <xs:documentation>Description d'un élément de l'historique du projet</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="date" type="xs:date">
+        <xs:annotation>
+          <xs:documentation>Date de la remontée</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="weather" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>Météo du projet</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="alert" type="ns:AlertType" minOccurs="0" maxOccurs="unbounded">
+        <xs:annotation>
+          <xs:documentation>Alertes et annonces liées à la remontée</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="consumedTime" type="xs:float" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>Temps consommé à la date d la FSP</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:string">
+      <xs:annotation>
+        <xs:documentation>Identifiant numérique de la FSP</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+  <xs:complexType name="AlertType">
+    <xs:annotation>
+      <xs:documentation>Alertes sur un projet</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="date" type="xs:dateTime">
+        <xs:annotation>
+          <xs:documentation>Date de l'alerte</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="title" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>Titre</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="description" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>Description</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:string">
+      <xs:annotation>
+        <xs:documentation>Identifiant numérique de l'alerte</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+  <xs:element name="project" type="ns:ProjectHistoryType"/>
+</xs:schema>
