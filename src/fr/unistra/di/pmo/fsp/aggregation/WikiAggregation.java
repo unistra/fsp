@@ -60,9 +60,9 @@ public class WikiAggregation
 	private static final double HOURS_IN_DAY = 7.5;
 	private static NumberFormat nf = new DecimalFormat("##"); //$NON-NLS-1$
 
-	protected static final String RED = "rouge"; //$NON-NLS-1$;
-	protected static final String ORANGE = "orange"; //$NON-NLS-1$;
-	protected static final String GREEN = "vert"; //$NON-NLS-1$;
+	public static final String RED = "rouge"; //$NON-NLS-1$;
+	public static final String ORANGE = "orange"; //$NON-NLS-1$;
+	public static final String GREEN = "vert"; //$NON-NLS-1$;
 
 	private ParametersType parameters;
 	private HashMap<String, WikiItem> fsps;
@@ -283,7 +283,6 @@ public class WikiAggregation
 							HistoryType oldHistoryType = null;
 							if (projectHistoryType.sizeOfHistoryArray() > 1)
 								oldHistoryType = projectHistoryType.getHistoryArray(projectHistoryType.sizeOfHistoryArray() - 2);
-							Main.diff.addItem(project.getName(), oldHistoryType, historyType);
 
 							// Record changes
 							FileOutputStream fos = new FileOutputStream(f);
@@ -311,6 +310,8 @@ public class WikiAggregation
 							result += newLine(false, fspName, smiley(weather.toLowerCase()), sl, projectTime, w, controlDate, lu, false);
 						} else
 							result += newLine(false, fspName, "Pas de FSP", " ", " ", " ", " ", " "); //$NON-NLS-1$//$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$ //$NON-NLS-5$ //$NON-NLS-6$
+						
+						Main.diff.addItem(project, projectHistoryType);
 
 					} catch (Exception e)
 					{
@@ -343,7 +344,7 @@ public class WikiAggregation
 			path += File.separator;
 		String fileName = path + at.getName() + ".wiki"; //$NON-NLS-1$
 		FileOutputStream fos = new FileOutputStream(new File(fileName));
-		fos.write(result.getBytes());
+		fos.write(result.getBytes("UTF-8")); //$NON-NLS-1$
 		fos.close();
 		return fileName;
 	}

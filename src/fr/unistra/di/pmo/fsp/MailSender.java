@@ -67,12 +67,11 @@ public class MailSender
 	 * @param emailList recipients list
 	 * @param subject mail subject
 	 * @param text text content
-	 * @param attachmentPath path of file to include
 	 * @throws MessagingException error during mail creation
 	 * @throws ParameterException parameters error
 	 */
 	@SuppressWarnings("synthetic-access")
-	public void sendMail(String[] emailList, String subject, String text, String attachmentPath) throws MessagingException, ParameterException
+	public void sendMail(String[] emailList, String subject, String text) throws MessagingException, ParameterException
 	{
 		if (emailList == null)
 			throw new ParameterException("No recipients found"); //$NON-NLS-1$
@@ -115,28 +114,79 @@ public class MailSender
 
 		// Subject
 		msg.setSubject(subject);
+		msg.setContent(text, "text/html; charset=UTF-8"); //$NON-NLS-1$
+		msg.setHeader("Content-Type", "text/html; charset=UTF-8"); //$NON-NLS-1$ //$NON-NLS-2$
+		msg.saveChanges();
 
-		// Text content
-		MimeBodyPart messageBodyPart = new MimeBodyPart();
-		messageBodyPart.setText(text);
+		Transport.send(msg);
 
-		Multipart multipart = new MimeMultipart();
-		multipart.addBodyPart(messageBodyPart);
+	}
+	
+	/**
+	 * Send a mail.
+	 * 
+	 * @param emailList recipients list
+	 * @param subject mail subject
+	 * @param text text content
+	 * @throws MessagingException error during mail creation
+	 * @throws ParameterException parameters error
+	 */
+	@SuppressWarnings("synthetic-access")
+	public void sendMail(String[] emailList, String subject, String htmlText, String plainText) throws MessagingException, ParameterException
+	{
+		if (emailList == null)
+			throw new ParameterException("No recipients found"); //$NON-NLS-1$
+		boolean debug = false;
 
-		// Attachment
-		if (attachmentPath != null)
+		// Define properties
+		Properties props = new Properties();
+
+		props.put("mail.smtp.host", host); //$NON-NLS-1$
+		props.put("mail.smtp.auth", "true"); //$NON-NLS-1$ //$NON-NLS-2$
+		props.put("mail.debug", "true"); //$NON-NLS-1$ //$NON-NLS-2$
+		props.put("mail.smtp.user", username); //$NON-NLS-1$
+		props.put("mail.smtp.password", password); //$NON-NLS-1$
+		props.put("mail.smtp.port", port); //$NON-NLS-1$
+		props.put("mail.smtp.starttls.enable", "true"); //$NON-NLS-1$ //$NON-NLS-2$
+
+		Authenticator auth = new SMTPAuthenticator();
+
+		System.getSecurityManager();
+
+		Session session = Session.getInstance(props, auth);
+
+		session.setDebug(debug);
+
+		// Creating message
+		Message msg = new MimeMessage(session);
+
+		InternetAddress addressFrom = new InternetAddress(sender);
+		msg.setFrom(addressFrom);
+
+		// Recipients
+		InternetAddress[] addressTo = new InternetAddress[emailList.length];
+
+		for (int i = 0; i < emailList.length; i++)
 		{
-			messageBodyPart = new MimeBodyPart();
-			DataSource source = new FileDataSource(attachmentPath);
-			messageBodyPart.setDataHandler(new DataHandler(source));
-			String[] split = attachmentPath.split(File.separator);
-			String filename = split[split.length - 1];
-			messageBodyPart.setFileName(filename);
-			multipart.addBodyPart(messageBodyPart);
+			addressTo[i] = new InternetAddress(emailList[i]);
 		}
 
-		// Put parts in message
-		msg.setContent(multipart);
+		msg.setRecipients(Message.RecipientType.TO, addressTo);
+		
+		msg.setSubject(subject);
+		
+		// HTML
+		MimeBodyPart htmlPart = new MimeBodyPart();
+        htmlPart.setContent(htmlText, "text/html; charset=UTF-8"); //$NON-NLS-1$
+		// Plain
+		MimeBodyPart textPart = new MimeBodyPart();
+        textPart.setContent(plainText, "text/plain; charset=UTF-8"); //$NON-NLS-1$
+
+        Multipart mp = new MimeMultipart("alternative"); //$NON-NLS-1$
+        mp.addBodyPart(textPart);
+        mp.addBodyPart(htmlPart);
+        
+        msg.setContent(mp);
 
 		Transport.send(msg);
 

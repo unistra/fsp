@@ -1,8 +1,10 @@
 package fr.unistra.di.pmo.fsp;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 
 /**
  * Utils for files.
@@ -36,7 +38,7 @@ public class FileUtils
 
 			try
 			{
-				BufferedReader input = new BufferedReader(new FileReader(f));
+				BufferedReader input = new BufferedReader(new InputStreamReader(new FileInputStream(f), "UTF-8")); //$NON-NLS-1$
 				String line = null;
 				while ((line = input.readLine()) != null)
 				{

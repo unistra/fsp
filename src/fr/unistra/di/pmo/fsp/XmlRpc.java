@@ -159,7 +159,7 @@ public class XmlRpc
 					String text = diff;
 					String[] recipients = new String[1];
 					recipients[0] = pt.getReportRecipient();
-					ms.sendMail(recipients, "Changements dans la liste des projets", text, null); //$NON-NLS-1$
+					ms.sendMail(recipients, "Changements dans la liste des projets", text); //$NON-NLS-1$
 				}
 				// Save new list
 				pl.save(path);

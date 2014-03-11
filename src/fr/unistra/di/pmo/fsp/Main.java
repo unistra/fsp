@@ -1,12 +1,9 @@
 package fr.unistra.di.pmo.fsp;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 
@@ -67,25 +64,13 @@ public class Main
 
 		ParametersType pt = doc.getParameters();
 
-		// Prepare mail features
-		MailSender ms = new MailSender(pt.getSend());
-
 		// Get project list from wiki
 				
 		if (pt.isSetSimulation())
 			simulation = pt.getSimulation();
 
 		// Check diff
-		GregorianCalendar start = new GregorianCalendar();
-		String diffNamePrefix = pt.getOutputFolder();
-		if (!diffNamePrefix.endsWith("/"))diffNamePrefix += "/"; //$NON-NLS-1$//$NON-NLS-2$
-		diffNamePrefix += "diff-"; //$NON-NLS-1$
-		diff = new Diff(diffNamePrefix);
-
-		String diffName = diffNamePrefix + start.get(Calendar.WEEK_OF_YEAR);
-
-		File fd = new File(diffName);
-		boolean sendDiff = !fd.exists();
+		diff = new Diff(pt);
 
 		XmlRpc xmlRpc = WikiConnection.getXmlRpc(pt);
 		HashMap<String, WikiItem> fsps = xmlRpc.getProjectList(doc.getParameters());
@@ -107,26 +92,10 @@ public class Main
 		{
 			aggregate(pt, fsps, redmineProjects);
 		}
+		
+		diff.sendReport();
 
-		if (sendDiff)
-		{
-			if (!fd.exists())
-			{
-				FileOutputStream fos = new FileOutputStream(fd);
-				fos.write("".getBytes()); //$NON-NLS-1$
-				fos.close();
-			}
-			String oldDiffName = diffNamePrefix + (start.get(Calendar.WEEK_OF_YEAR) - 1);
 
-			File old = new File(oldDiffName);
-			if (old.exists())
-			{
-				String[] recipients = new String[1];
-				recipients[0] = pt.getReportRecipient();
-				String content = FileUtils.read(old);
-				ms.sendMail(recipients, "Activité projet semaine " + (start.get(Calendar.WEEK_OF_YEAR) - 1), content, null); //$NON-NLS-1$
-			}
-		}
 	}
 
 	private static void aggregate(ParametersType pt, HashMap<String, WikiItem> fsps, HashMap<String, Project> redmineProjects)
@@ -183,7 +152,7 @@ public class Main
 		}
 		String[] recipients = new String[1];
 		recipients[0] = pt.getErrorRecipient();
-		ms.sendMail(recipients, "Exception in FSP", text, null); //$NON-NLS-1$
+		ms.sendMail(recipients, "Exception in FSP", text); //$NON-NLS-1$
 	}
 
 	/**
