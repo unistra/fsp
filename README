@@ -38,17 +38,29 @@ Si une modification est détectée, un mail est envoyé aux gestionnaires du por
 
 ===== Compilation =====
 ==== Dépendances ====
+Le script dependencies.sh effectue automatiquement les opérations décrites ci-dessous.
+
+Le fichier repose sur [[https://git.u-strasbg.fr/git/java-utils/tree/fileutils]] pour la gestion des fichiers.
+Le fichier repose sur [[https://git.u-strasbg.fr/git/java-utils/tree/stringutils]] pour la gestion des chaînes de caractères.
+  git clone git@git.u-strasbg.fr:java-utils                                                                                                                     
+  cd java-utils/fileutils
+  mvn install
+  cd ../stringutils
+  mvn install
+
 Le fichier repose sur un [[https://github.com/nilseckert/redmine-java-api.git|fork de redmine-java-api]] gérant les //custom fields//.
   git clone https://github.com/nilseckert/redmine-java-api.git                                                                                                                     
   mvn install
 
 ==== Création de l'archive ====
-  mvn package
+  mvn package -Dconfig="path/to/config/file"
 
 Tout est pris en compte dans la configuration Maven
   - le schéma du fichier de configuration est utilisé pour générer les classes xmlbeans
   - le plugin maven-jar-plugin est utilisé pour repackager les dépendances
   - une archive autonome //fsp-X.X.jar// est créée.
+
+A noter que le fichier de configuration est nécessaire pour tester les possibilités d'envoi de mail
 
 ===== Usage =====
   java -Xmx1024m -jar target/fsp-X.X.jar /chemin/fichier/configuration.xml
@@ -57,3 +69,6 @@ Tout est pris en compte dans la configuration Maven
   * [[http://www.redmine.org/projects/redmine/wiki/Rest_api|API REST Redmine]]
   * [[https://github.com/taskadapter/redmine-java-api/|API Java Redmine]]
   * [[https://www.dokuwiki.org/devel:xmlrpc|Dokuwiki XML/RPC API]]
+  
+===== Licence =====
+//fsp// est sous licence [[http://www.cecill.info/licences/Licence_CeCILL-B_V1-fr.html|CeCILL-B]].

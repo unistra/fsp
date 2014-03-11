@@ -1,11 +1,8 @@
 package fr.unistra.di.pmo.fsp;
 
-import java.io.File;
+import java.io.UnsupportedEncodingException;
 import java.util.Properties;
 
-import javax.activation.DataHandler;
-import javax.activation.DataSource;
-import javax.activation.FileDataSource;
 import javax.mail.Authenticator;
 import javax.mail.Message;
 import javax.mail.MessagingException;
@@ -17,6 +14,7 @@ import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
+import javax.mail.internet.MimeUtility;
 
 import fr.unistra.di.pmo.fsp.exception.ParameterException;
 import fr.unistra.di.pmo.fsp.parametres.MailSenderType;
@@ -47,8 +45,6 @@ public class MailSender
 		if (mst.getHost() == null)
 			throw new ParameterException("No smtp host provided"); //$NON-NLS-1$
 		host = mst.getHost();
-		if (mst.getPassword() == null)
-			throw new ParameterException("No smtp password provided"); //$NON-NLS-1$
 		password = mst.getPassword();
 		if (mst.getPort() == null)
 			throw new ParameterException("No smtp port provided"); //$NON-NLS-1$
@@ -56,8 +52,6 @@ public class MailSender
 		if (mst.getSender() == null)
 			throw new ParameterException("No smtp sender provided"); //$NON-NLS-1$
 		sender = mst.getSender();
-		if (mst.getUsername() == null)
-			throw new ParameterException("No smtp username provided"); //$NON-NLS-1$
 		username = mst.getUsername();
 	}
 
@@ -70,64 +64,18 @@ public class MailSender
 	 * @throws MessagingException error during mail creation
 	 * @throws ParameterException parameters error
 	 */
-	@SuppressWarnings("synthetic-access")
 	public void sendMail(String[] emailList, String subject, String text) throws MessagingException, ParameterException
 	{
-		if (emailList == null)
-			throw new ParameterException("No recipients found"); //$NON-NLS-1$
-		boolean debug = false;
-
-		// Define properties
-		Properties props = new Properties();
-
-		props.put("mail.smtp.host", host); //$NON-NLS-1$
-		props.put("mail.smtp.auth", "true"); //$NON-NLS-1$ //$NON-NLS-2$
-		props.put("mail.debug", "true"); //$NON-NLS-1$ //$NON-NLS-2$
-		props.put("mail.smtp.user", username); //$NON-NLS-1$
-		props.put("mail.smtp.password", password); //$NON-NLS-1$
-		props.put("mail.smtp.port", port); //$NON-NLS-1$
-		props.put("mail.smtp.starttls.enable", "true"); //$NON-NLS-1$ //$NON-NLS-2$
-
-		Authenticator auth = new SMTPAuthenticator();
-
-		System.getSecurityManager();
-
-		Session session = Session.getInstance(props, auth);
-
-		session.setDebug(debug);
-
-		// Creating message
-		Message msg = new MimeMessage(session);
-
-		InternetAddress addressFrom = new InternetAddress(sender);
-		msg.setFrom(addressFrom);
-
-		// Recipients
-		InternetAddress[] addressTo = new InternetAddress[emailList.length];
-
-		for (int i = 0; i < emailList.length; i++)
-		{
-			addressTo[i] = new InternetAddress(emailList[i]);
-		}
-
-		msg.setRecipients(Message.RecipientType.TO, addressTo);
-
-		// Subject
-		msg.setSubject(subject);
-		msg.setContent(text, "text/html; charset=UTF-8"); //$NON-NLS-1$
-		msg.setHeader("Content-Type", "text/html; charset=UTF-8"); //$NON-NLS-1$ //$NON-NLS-2$
-		msg.saveChanges();
-
-		Transport.send(msg);
-
+		sendMail(emailList, subject, null, text);
 	}
-	
+
 	/**
 	 * Send a mail.
 	 * 
 	 * @param emailList recipients list
 	 * @param subject mail subject
-	 * @param text text content
+	 * @param htmlText HTML version of content
+	 * @param plainText Plain text version
 	 * @throws MessagingException error during mail creation
 	 * @throws ParameterException parameters error
 	 */
@@ -142,14 +90,20 @@ public class MailSender
 		Properties props = new Properties();
 
 		props.put("mail.smtp.host", host); //$NON-NLS-1$
-		props.put("mail.smtp.auth", "true"); //$NON-NLS-1$ //$NON-NLS-2$
+		
+		Authenticator auth = null;
+		
+		if ((username != null) && (password != null))
+		{
+			props.put("mail.smtp.auth", "true"); //$NON-NLS-1$ //$NON-NLS-2$
+			props.put("mail.smtp.user", username); //$NON-NLS-1$	
+			props.put("mail.smtp.password", password); //$NON-NLS-1$
+		}
 		props.put("mail.debug", "true"); //$NON-NLS-1$ //$NON-NLS-2$
-		props.put("mail.smtp.user", username); //$NON-NLS-1$
-		props.put("mail.smtp.password", password); //$NON-NLS-1$
 		props.put("mail.smtp.port", port); //$NON-NLS-1$
 		props.put("mail.smtp.starttls.enable", "true"); //$NON-NLS-1$ //$NON-NLS-2$
 
-		Authenticator auth = new SMTPAuthenticator();
+		if ((username != null) && (password != null)) auth = new SMTPAuthenticator();
 
 		System.getSecurityManager();
 
@@ -172,21 +126,33 @@ public class MailSender
 		}
 
 		msg.setRecipients(Message.RecipientType.TO, addressTo);
-		
-		msg.setSubject(subject);
-		
+
+		try
+		{
+			msg.setSubject(MimeUtility.encodeText(subject, "UTF-8", "Q")); //$NON-NLS-1$//$NON-NLS-2$
+		} catch (UnsupportedEncodingException e)
+		{
+			e.printStackTrace();
+		}
+
+		MimeBodyPart htmlPart = null;
+
 		// HTML
-		MimeBodyPart htmlPart = new MimeBodyPart();
-        htmlPart.setContent(htmlText, "text/html; charset=UTF-8"); //$NON-NLS-1$
+		if (htmlText != null)
+		{
+			htmlPart = new MimeBodyPart();
+			htmlPart.setContent(htmlText, "text/html; charset=UTF-8"); //$NON-NLS-1$
+		}
 		// Plain
 		MimeBodyPart textPart = new MimeBodyPart();
-        textPart.setContent(plainText, "text/plain; charset=UTF-8"); //$NON-NLS-1$
+		textPart.setContent(plainText, "text/plain; charset=UTF-8"); //$NON-NLS-1$
 
-        Multipart mp = new MimeMultipart("alternative"); //$NON-NLS-1$
-        mp.addBodyPart(textPart);
-        mp.addBodyPart(htmlPart);
-        
-        msg.setContent(mp);
+		Multipart mp = new MimeMultipart("alternative"); //$NON-NLS-1$
+		mp.addBodyPart(textPart);
+		if (htmlText != null)
+			mp.addBodyPart(htmlPart);
+
+		msg.setContent(mp);
 
 		Transport.send(msg);
 

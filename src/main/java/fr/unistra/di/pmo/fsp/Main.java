@@ -84,6 +84,7 @@ public class Main
 		redmineLogger.info("Found " + pl.size() + " projects"); //$NON-NLS-1$//$NON-NLS-2$
 		for (Project project : pl)
 		{
+			redmineLogger.info("\t'" + project.getIdentifier() + "' : " + project.getName()); //$NON-NLS-1$ //$NON-NLS-2$
 			redmineProjects.put(project.getIdentifier(), project);
 		}
 

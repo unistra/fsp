@@ -4,11 +4,14 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Enumeration;
+import java.util.GregorianCalendar;
 import java.util.Hashtable;
 
 import org.apache.xmlbeans.XmlException;
 import org.apache.xmlbeans.XmlOptions;
 
+import fr.unistra.di.pmo.fsp.aggregation.Diff;
+import fr.unistra.di.pmo.fsp.parametres.ParametersType;
 import fr.unistra.di.pmo.fsp.parametres.ProjectListDocument;
 import fr.unistra.di.pmo.fsp.parametres.ProjectListType;
 import fr.unistra.di.pmo.fsp.parametres.ProjectType;
@@ -20,6 +23,8 @@ import fr.unistra.di.pmo.fsp.parametres.ProjectType;
  */
 public class ProjectPortfolio
 {
+	private static final String FILENAME = "existingProjects"; //$NON-NLS-1$
+	private static final String FILESUFFIX = ".xml"; //$NON-NLS-1$
 	private Hashtable<String, PortfolioItem> list;
 
 	/**
@@ -151,5 +156,36 @@ public class ProjectPortfolio
 			fos.write(("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + doc.xmlText(opts)).getBytes("utf-8")); //$NON-NLS-1$ //$NON-NLS-2$
 			fos.close();
 		}
+	}
+	
+	/**
+	 * Creates backup.
+	 * @param pt parameters
+	 * @throws XmlException exception
+	 * @throws IOException exception
+	 */
+	public static void backup(ParametersType pt) throws XmlException, IOException
+	{
+		ProjectPortfolio pf = new ProjectPortfolio();
+		pf.load(path(pt));
+		String path = pt.getOutputFolder();
+		if (!path.endsWith(File.separator))
+			path += File.separator;
+		path += FILENAME + "-" + Diff.key(new GregorianCalendar()) + FILESUFFIX; //$NON-NLS-1$
+		pf.save(path);
+	}
+	
+	/**
+	 * Gives path from parameters.
+	 * @param pt parameters
+	 * @return path
+	 */
+	public static String path(ParametersType pt)
+	{
+		String path = pt.getOutputFolder();
+		if (!path.endsWith(File.separator))
+			path += File.separator;
+		path += FILENAME + FILESUFFIX;
+		return path;
 	}
 }

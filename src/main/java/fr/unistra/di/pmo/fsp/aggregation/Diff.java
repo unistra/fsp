@@ -12,9 +12,11 @@ import java.util.HashMap;
 
 import javax.mail.MessagingException;
 
+import org.apache.xmlbeans.XmlException;
+
 import com.taskadapter.redmineapi.bean.Project;
 
-import fr.unistra.di.pmo.fsp.FileUtils;
+import fr.unistra.di.FileUtils;
 import fr.unistra.di.pmo.fsp.MailSender;
 import fr.unistra.di.pmo.fsp.Main;
 import fr.unistra.di.pmo.fsp.exception.ParameterException;
@@ -22,6 +24,7 @@ import fr.unistra.di.pmo.fsp.historique.AlertType;
 import fr.unistra.di.pmo.fsp.historique.HistoryType;
 import fr.unistra.di.pmo.fsp.historique.ProjectHistoryType;
 import fr.unistra.di.pmo.fsp.parametres.ParametersType;
+import fr.unistra.di.pmo.fsp.project.ProjectPortfolio;
 
 /**
  * Description of differential log for projects activity.
@@ -114,7 +117,12 @@ public class Diff
 		}
 	}
 
-	private String key(GregorianCalendar gc)
+	/**
+	 * Gets key from year and week number.
+	 * @param gc date
+	 * @return key
+	 */
+	public static String key(GregorianCalendar gc)
 	{
 		if (gc == null)
 			return null;
@@ -288,8 +296,9 @@ public class Diff
 	 * @throws UnsupportedEncodingException exception
 	 * @throws IOException exception
 	 * @throws MessagingException exception
+	 * @throws XmlException exception
 	 */
-	public void sendReport() throws ParameterException, UnsupportedEncodingException, IOException, MessagingException
+	public void sendReport() throws ParameterException, UnsupportedEncodingException, IOException, MessagingException, XmlException
 	{
 		String htmlDiffName = diffNamePrefix + key(new GregorianCalendar()) + HTML_SUFFIX;
 		File hfd = new File(htmlDiffName);
@@ -300,6 +309,9 @@ public class Diff
 
 		if (sendDiff)
 		{
+			// Weekly backup of portfolio
+			ProjectPortfolio.backup(pt);
+			
 			// Prepare mail features
 			MailSender ms = new MailSender(pt.getSend());
 
@@ -318,8 +330,11 @@ public class Diff
 			File oldPlain = new File(oldPlainDiffName);
 			if (oldHtml.exists())
 			{
-				String[] recipients = new String[1];
-				recipients[0] = pt.getReportRecipient();
+				String[] recipients = new String[pt.sizeOfReportRecipientArray()];
+				for(int i=0; i<pt.sizeOfReportRecipientArray();i++)
+				{
+					recipients[i] = pt.getReportRecipientArray(i);
+				}
 				String htmlContent = FileUtils.read(oldHtml);
 				String plainContent = FileUtils.read(oldPlain);
 				ms.sendMail(recipients, "Activité projet semaine " + lastWeek.get(Calendar.WEEK_OF_YEAR), htmlContent, plainContent); //$NON-NLS-1$

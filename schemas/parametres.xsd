@@ -38,9 +38,9 @@
           <xs:documentation>Destinataire des erreurs</xs:documentation>
         </xs:annotation>
       </xs:element>
-      <xs:element name="reportRecipient" type="xs:string">
+      <xs:element name="reportRecipient" type="xs:string" maxOccurs="unbounded">
         <xs:annotation>
-          <xs:documentation>Destinataire des rapports</xs:documentation>
+          <xs:documentation>Destinataires des rapports</xs:documentation>
         </xs:annotation>
       </xs:element>
     </xs:sequence>

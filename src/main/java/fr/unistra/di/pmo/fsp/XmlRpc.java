@@ -1,9 +1,6 @@
 package fr.unistra.di.pmo.fsp;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -37,6 +34,7 @@ import org.w3c.tidy.Tidy;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
+import fr.unistra.di.FileUtils;
 import fr.unistra.di.pmo.fsp.exception.ParameterException;
 import fr.unistra.di.pmo.fsp.parametres.ParametersType;
 import fr.unistra.di.pmo.fsp.project.PortfolioItem;
@@ -145,10 +143,7 @@ public class XmlRpc
 				}
 				// Getting last project list
 				ProjectPortfolio old = new ProjectPortfolio();
-				String path = pt.getOutputFolder();
-				if (!path.endsWith(File.separator))
-					path += File.separator;
-				path += "existingProjects.xml"; //$NON-NLS-1$
+				String path = ProjectPortfolio.path(pt);
 				old.load(path);
 				// Compare to old list
 				String diff = old.compare(pl);
@@ -157,8 +152,11 @@ public class XmlRpc
 				{
 					MailSender ms = new MailSender(pt.getSend());
 					String text = diff;
-					String[] recipients = new String[1];
-					recipients[0] = pt.getReportRecipient();
+					String[] recipients = new String[pt.sizeOfReportRecipientArray()];
+					for(int i=0; i<pt.sizeOfReportRecipientArray();i++)
+					{
+						recipients[i] = pt.getReportRecipientArray(i);
+					}
 					ms.sendMail(recipients, "Changements dans la liste des projets", text); //$NON-NLS-1$
 				}
 				// Save new list

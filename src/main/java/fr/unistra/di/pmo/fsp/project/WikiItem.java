@@ -105,8 +105,8 @@ public class WikiItem
 	{
 		if (s == null)
 			return null;
-		if (s.indexOf("#") > 0) //$NON-NLS-1$
-			s = s.split("#")[0]; //$NON-NLS-1$
+		s = s.replaceAll(" *#[^#]*", "");  //$NON-NLS-1$//$NON-NLS-2$
+		s = s.trim();
 		return s;
 	}
 

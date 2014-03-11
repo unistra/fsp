@@ -30,7 +30,6 @@ import com.taskadapter.redmineapi.bean.Project;
 import com.taskadapter.redmineapi.bean.TimeEntry;
 
 import fr.unistra.di.pmo.fsp.Main;
-import fr.unistra.di.pmo.fsp.StringUtils;
 import fr.unistra.di.pmo.fsp.exception.ParameterException;
 import fr.unistra.di.pmo.fsp.historique.AlertType;
 import fr.unistra.di.pmo.fsp.historique.HistoryType;
@@ -41,6 +40,7 @@ import fr.unistra.di.pmo.fsp.parametres.ParametersType;
 import fr.unistra.di.pmo.fsp.parametres.WikiOutputType;
 import fr.unistra.di.pmo.fsp.project.WikiItem;
 import fr.unistra.di.pmo.fsp.redmine.Connection;
+import fr.unistra.di.utils.StringUtils;
 
 /**
  * Aggregation into Dokuwiki format.
@@ -114,6 +114,8 @@ public class WikiAggregation
 			Collections.sort(list);
 			for (String string : list)
 			{
+				Main.wikiLogger.debug(string);
+				Main.wikiLogger.debug(fsps.get(string).getRedmineId());
 				at.addFsp(string);
 			}
 		}
@@ -122,16 +124,18 @@ public class WikiAggregation
 
 		for (String fspName : at.getFspArray())
 		{
+			Main.wikiLogger.info("************* Processing FSP with name " + fspName); //$NON-NLS-1$
 			if (fsps.containsKey(fspName))
 			{
 				WikiItem fsp = fsps.get(fspName);
+				Main.redmineLogger.info("Will use redmine project with id '" + fsp.getRedmineId() + "'"); //$NON-NLS-1$ //$NON-NLS-2$
 				if (redmineProjects.containsKey(fsp.getRedmineId()))
 				{
 					try
 					{
 						Project project = redmineProjects.get(fsp.getRedmineId());
 
-						Main.redmineLogger.info("************* Processing " + project.getName() + " (" + project.getIdentifier() + " / " + project.getId() + ")"); //$NON-NLS-1$//$NON-NLS-2$//$NON-NLS-3$ //$NON-NLS-4$
+						Main.redmineLogger.info("Processing " + project.getName() + " (" + project.getIdentifier() + " / " + project.getId() + ")"); //$NON-NLS-1$//$NON-NLS-2$//$NON-NLS-3$ //$NON-NLS-4$
 
 						// History
 						ProjectDocument projectDocument = null;
@@ -227,11 +231,13 @@ public class WikiAggregation
 						for (Issue issue : issues)
 						{
 							List<TimeEntry> timeEntries = Connection.getInstance().getTimeEntriesForIssue(issue.getId());
+							Main.redmineLogger.debug("Found " + timeEntries.size() + " time entries (before filter) for issue" + issue.getId());  //$NON-NLS-1$//$NON-NLS-2$
 							nbIssues++;
 							for (TimeEntry timeEntry : timeEntries)
 							{
 								if (!accountedTimeEntries.containsKey(timeEntry.getId()))
 								{
+									Main.redmineLogger.debug("Time entry " + timeEntry.getId() + " created on " + timeEntry.getCreatedOn());  //$NON-NLS-1$//$NON-NLS-2$
 									if ((lu != null) && (timeEntry.getCreatedOn().getTime() < lu.getTime()))
 									{
 										projectTime += timeEntry.getHours();
@@ -279,10 +285,6 @@ public class WikiAggregation
 								alertType.setDescription(Messages.getString("WikiAggregation.NotActivated.Warning")); //$NON-NLS-1$
 								warningParagraphs += addWarning(warnings, fsp.getName(), new Date(), alertType.getTitle(), alertType.getDescription(), weather);
 							}
-							
-							HistoryType oldHistoryType = null;
-							if (projectHistoryType.sizeOfHistoryArray() > 1)
-								oldHistoryType = projectHistoryType.getHistoryArray(projectHistoryType.sizeOfHistoryArray() - 2);
 
 							// Record changes
 							FileOutputStream fos = new FileOutputStream(f);
