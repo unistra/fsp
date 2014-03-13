@@ -41,10 +41,6 @@ Si une modification est détectée, un mail est envoyé aux gestionnaires du por
 ## Compilation
 ### Dépendances
 
-Le fichier repose sur fileUtils (dépôt à venir) pour la gestion des fichiers.
-
-Le fichier repose sur stringUtils (dépôt à venir) pour la gestion des chaînes de caractères.
-
 Le fichier repose sur un [fork de redmine-java-api](https://github.com/nilseckert/redmine-java-api.git) gérant les *custom fields*.
 
     git clone https://github.com/nilseckert/redmine-java-api.git 
